@@ -4,7 +4,6 @@ from secrets import choice
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseRedirect
 from numpy import number
-# <HINT> Import any new Models here
 from .models import Course, Enrollment, Submission, Choice, Question, Lesson
 from django.contrib.auth.models import User
 from django.db.models import Count
@@ -13,9 +12,7 @@ from django.urls import reverse
 from django.views import generic
 from django.contrib.auth import login, logout, authenticate
 import logging
-# Get an instance of a logger
 logger = logging.getLogger(__name__)
-# Create your views here.
 
 
 def registration_request(request):
@@ -68,14 +65,12 @@ def logout_request(request):
 def check_if_enrolled(user, course):
     is_enrolled = False
     if user.id is not None:
-        # Check if user enrolled
         num_results = Enrollment.objects.filter(user=user, course=course).count()
         if num_results > 0:
             is_enrolled = True
     return is_enrolled
 
 
-# CourseListView
 class CourseListView(generic.ListView):
     template_name = 'onlinecourse/course_list_bootstrap.html'
     context_object_name = 'course_list'
@@ -100,21 +95,12 @@ def enroll(request, course_id):
 
     is_enrolled = check_if_enrolled(user, course)
     if not is_enrolled and user.is_authenticated:
-        # Create an enrollment
         Enrollment.objects.create(user=user, course=course, mode='honor')
         course.total_enrollment += 1
         course.save()
 
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
 
-
-# <HINT> Create a submit view to create an exam submission record for a course enrollment,
-# you may implement it based on following logic:
-         # Get user and course object, then get the associated enrollment object created when the user enrolled the course
-         # Create a submission object referring to the enrollment
-         # Collect the selected choices from exam form
-         # Add each selected choice object to the submission object
-         # Redirect to show_exam_result with the submission id
 
 def extract_answers(request):
         submitted_anwsers = []
@@ -124,10 +110,7 @@ def extract_answers(request):
                 choice_id = int(value)
                 submitted_anwsers.append(choice_id)
         return submitted_anwsers
-        # choices = []
-        # for choice_id in submitted_anwsers:
-        #     choices.append(Choice.objects.get(pk = choice_id))
-        # return choices
+
 
 def submit(request, course_id):
     user = request.user
@@ -138,31 +121,9 @@ def submit(request, course_id):
     submission.save()
     for choice in choices:
         submission.choices.add(choice)
-
-    # Submission.objects.create(enrollment = enrollment, choices = submitted_answers)
     return show_exam_result(request,course_id=course_id, submission_id=submission.pk)
     
 
-
-# <HINT> A example method to collect the selected choices from the exam form from the request object
-#def extract_answers(request):
-#    submitted_anwsers = []
-#    for key in request.POST:
-#        if key.startswith('choice'):
-#            value = request.POST[key]
-#            choice_id = int(value)
-#            submitted_anwsers.append(choice_id)
-#    return submitted_anwsers
-
-
-# <HINT> Create an exam result view to check if learner passed exam and show their question results and result for each question,
-# you may implement it based on the following logic:
-        # Get course and submission based on their ids
-        # Get the selected choice ids from the submission record
-        # For each selected choice, check if it is a correct answer or not
-        # Calculate the total score
-
-# def get_score():
 
 
 
@@ -171,23 +132,20 @@ def show_exam_result(request, course_id, submission_id):
     course = Course.objects.get(pk = course_id)
     total_answers = extract_answers(request)
     submission = Submission.objects.get(pk = submission_id)
-
     lesson = Lesson.objects.get(course_id = course_id)
     number_of_questions = Question.objects.filter(lesson_id = lesson.pk).aggregate(Count('pk'))
     number_of_questions = number_of_questions['pk__count']
     score:float = 100.00
     questions = Question.objects.filter(lesson_id = lesson.pk)
-    grade = 'Pass'
+
     for question in questions:
         if not question.is_get_score(total_answers):
             score = score - (100/number_of_questions)
 
 
-    if ( score < 50):
-        grade = 'Fail'
  
+    context['lesson'] = lesson 
     context['selected_ids'] = total_answers
     context['course'] = course
-    context['grade'] = grade
-    context['score'] = score
+    context['grade'] = int(score)
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)

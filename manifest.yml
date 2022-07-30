@@ -1,5 +1,5 @@
   applications:
-  - name: onlinecourse
+  - name: onlinecourse-final
     routes:
       - route: mrvs.eu-de.cf.appdomain.cloud
     memory: 128M
